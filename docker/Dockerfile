@@ -496,19 +496,10 @@ RUN mv vllm src/vllm
 
 #################### OPENAI API SERVER ####################
 #################### OPENAI API SERVER ####################
-# base openai image with additional requirements, for any subsequent openai-style images
-FROM ${FINAL_BASE_IMAGE} AS vllm-openai-base
-ARG CUDA_VERSION
-ARG PYTHON_VERSION
+#################### OPENAI API SERVER ####################
+# Use vllm-base which already has Python installed
+FROM vllm-base AS vllm-openai-base
 ARG INSTALL_KV_CONNECTORS=false
-WORKDIR /workspace
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install python + pip same as vllm-base (but no wheel reinstall by default)
-RUN apt-get update -y && apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-venv \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
-    && curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} \
-    && python3 -m pip install uv
 
 # optional: install vllm wheel only if explicitly requested
 ARG INSTALL_VLLM_WHEEL=false
