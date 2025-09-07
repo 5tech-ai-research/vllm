@@ -6,7 +6,15 @@
 # docs/assets/contributing/dockerfile-stages-dependency.png
 
 ARG CUDA_VERSION=12.8.1
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.1RUN apt-get update -y && apt-get install -y \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-dev \
+    python${PYTHON_VERSION}-venv \
+    curl \
+ && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
+ && curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} \
+ && python3 -m pip install --upgrade pip \
+ && python3 -m pip install uv
 
 # By parameterizing the base images, we allow third-party to use their own
 # base images. One use case is hermetic builds with base images stored in
