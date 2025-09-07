@@ -495,42 +495,42 @@ RUN mv vllm src/vllm
 #################### TEST IMAGE ####################
 
 #################### OPENAI API SERVER ####################
+#################### OPENAI API SERVER ####################
 # base openai image with additional requirements, for any subsequent openai-style images
-FROM vllm-base AS vllm-openai-base
-ARG TARGETPLATFORM
+FROM ${FINAL_BASE_IMAGE} AS vllm-openai-base
+ARG CUDA_VERSION
+ARG PYTHON_VERSION
 ARG INSTALL_KV_CONNECTORS=false
+WORKDIR /workspace
+ENV DEBIAN_FRONTEND=noninteractive
 
-ARG PIP_INDEX_URL UV_INDEX_URL
-ARG PIP_EXTRA_INDEX_URL UV_EXTRA_INDEX_URL
+# Install python + pip same as vllm-base (but no wheel reinstall by default)
+RUN apt-get update -y && apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-venv \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} \
+    && python3 -m pip install uv
 
-# This timeout (in seconds) is necessary when installing some dependencies via uv since it's likely to time out
-# Reference: https://github.com/astral-sh/uv/pull/1694
-ENV UV_HTTP_TIMEOUT=500
+# optional: install vllm wheel only if explicitly requested
+ARG INSTALL_VLLM_WHEEL=false
+COPY --from=build /workspace/dist /tmp/dist
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$INSTALL_VLLM_WHEEL" = "true" ]; then \
+        uv pip install --system /tmp/dist/*.whl; \
+    fi
 
 COPY requirements/kv_connectors.txt requirements/kv_connectors.txt
-
-# install additional dependencies for openai api server
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "$INSTALL_KV_CONNECTORS" = "true" ]; then \
         uv pip install --system -r requirements/kv_connectors.txt; \
     fi; \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        BITSANDBYTES_VERSION="0.42.0"; \
-    else \
-        BITSANDBYTES_VERSION="0.46.1"; \
-    fi; \
-    uv pip install --system accelerate hf_transfer modelscope "bitsandbytes>=${BITSANDBYTES_VERSION}" 'timm==0.9.10' boto3 runai-model-streamer runai-model-streamer[s3]
+    uv pip install --system accelerate hf_transfer boto3 'timm==0.9.10'
 
 ENV VLLM_USAGE_SOURCE production-docker-image
 
-# define sagemaker first, so it is not default from `docker build`
-FROM vllm-openai-base AS vllm-sagemaker
-
-COPY examples/online_serving/sagemaker-entrypoint.sh .
-RUN chmod +x sagemaker-entrypoint.sh
-ENTRYPOINT ["./sagemaker-entrypoint.sh"]
-
 FROM vllm-openai-base AS vllm-openai
-
+COPY vllm vllm
+COPY examples examples
 ENTRYPOINT ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+#################### OPENAI API SERVER ####################
+
 #################### OPENAI API SERVER ####################
