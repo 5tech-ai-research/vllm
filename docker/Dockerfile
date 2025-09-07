@@ -83,20 +83,16 @@ ARG GET_PIP_URL
 RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
     && echo 'tzdata tzdata/Zones/America select Los_Angeles' | debconf-set-selections \
     && apt-get update -y \
-    && apt-get install -y ccache software-properties-common git curl sudo \
-    && if [ ! -z ${DEADSNAKES_MIRROR_URL} ] ; then \
-        if [ ! -z "${DEADSNAKES_GPGKEY_URL}" ] ; then \
-            mkdir -p -m 0755 /etc/apt/keyrings ; \
-            curl -L ${DEADSNAKES_GPGKEY_URL} | gpg --dearmor > /etc/apt/keyrings/deadsnakes.gpg ; \
-            sudo chmod 644 /etc/apt/keyrings/deadsnakes.gpg ; \
-            echo "deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] ${DEADSNAKES_MIRROR_URL} $(lsb_release -cs) main" > /etc/apt/sources.list.d/deadsnakes.list ; \
-        fi ; \
-    else \
-        for i in 1 2 3; do \
-            add-apt-repository -y ppa:deadsnakes/ppa && break || \
-            { echo "Attempt $i failed, retrying in 5s..."; sleep 5; }; \
-        done ; \
-    fi \
+    && apt-get install -y ccache software-properties-common git curl sudo wget gnupg ca-certificates lsb-release \
+    && apt-get upgrade -y curl ca-certificates \
+    && echo "nameserver 8.8.8.8" >> /etc/resolv.conf \
+    && curl -v https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xf23c5a6cf475977595c89f51ba6932366a755776 || true \
+    && curl -v http://ppa.launchpad.net/deadsnakes/ppa/ubuntu || true \
+    && curl -v https://bootstrap.pypa.io/get-pip.py || true \
+    && mkdir -p -m 0755 /etc/apt/keyrings \
+    && curl -sSL --retry 3 --retry-delay 5 https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xf23c5a6cf475977595c89f51ba6932366a755776 | gpg --dearmor > /etc/apt/keyrings/deadsnakes.gpg \
+    && chmod 644 /etc/apt/keyrings/deadsnakes.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/deadsnakes.list \
     && apt-get update -y \
     && apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-venv \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
@@ -149,7 +145,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # can be useful for both `dev` and `test`
 # explicitly set the list to avoid issues with torch 2.2
 # see https://github.com/pytorch/pytorch/pull/123243
-ARG torch_cuda_arch_list='7.0 7.5 8.0 8.9 9.0 10.0 12.0'
+ARG torch_cuda_arch_list='9.0'
 ENV TORCH_CUDA_ARCH_LIST=${torch_cuda_arch_list}
 #################### BASE BUILD IMAGE ####################
 
